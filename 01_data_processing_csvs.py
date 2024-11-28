@@ -1,6 +1,5 @@
-# gathers SKU, Name or Title, Era, Description from all files
+# gathers SKU, Name or Title, Era, Description, itemType from all files
 # appends data into one file as output
-# ALL DONE except Microsoft DBs and masterList31911
 
 import os
 import pandas as pd
@@ -23,7 +22,7 @@ cwd = os.getcwd()
 file_names = [file for file in os.listdir(cwd) if os.path.isfile(os.path.join(cwd, file))]
 # print(f"file_names: {file_names}")
 
-complete_df = pd.DataFrame(columns=["sku", "name", "title", "era", "description"])
+complete_df = pd.DataFrame(columns=["sku", "name", "title", "era", "description", "itemtype"])
 
 for file in file_names:
     complete_file_path = os.path.join(cwd, file)
@@ -72,16 +71,26 @@ for file in file_names:
                 if "sellbrite" in file:
                     if any(char.isalpha() for char in str(df.loc[index, 'sku'])): # if sku is alphanumeric, replace it in Sellbrite file
                         df.at[index, 'sku'] = name_number
+    
+    # find item type category values and edit all name variations to itemtype
+    columns_to_rename = ["category_name", "TypeItem", "sub_category_child", "Parent Category", "Type"] # omitting Category Name in this list
+    for col in columns_to_rename:
+        if col in df.columns:
+            print(f"renaming {col} to itemtype")
+            df.rename(columns={col: "itemtype"}, inplace=True) 
+            if "itemtype" in df.columns:
+                print(f"itemtype column exists and has {df['itemtype'].count()} non-empty rows.")   
 
     #if df['sku'].dtype(int): # make all skus strings temporarily
     #    df['sku'].astype(str)
-    df = df.dropna(how='all') # get rid of empty rows to speed up processing
+    # df = df.dropna(how='all') # get rid of empty rows to speed up processing
+    # df = df.dropna(how='all', subset=["sku", "itemtype", "name", "description"])
     df.columns = df.columns.str.lower()
 
     if "sku" not in df.columns: # if this particular file doesn't have any sku reference, we don't need it
         continue
     else:
-        columns_to_keep = ["sku", "name", "title", "era", "description"]
+        columns_to_keep = ["sku", "name", "title", "era", "description", "itemtype"]
         df = df[[col for col in columns_to_keep if col in df.columns]] # get whatever columns already exist, skip those that don't exist
 
     if df.columns.tolist() == ['sku']: # if sku is the only one in the list, move on
@@ -102,7 +111,8 @@ for file in file_names:
                     if pd.isna(complete_df.loc[complete_df['sku'] == sku, col].values[0]):
                         complete_df.loc[complete_df['sku'] == sku, col] = row[col]
             else:
-                complete_df = pd.concat([complete_df, pd.DataFrame([row])], ignore_index=True) # make a new entry
+                new_row_df = pd.DataFrame([row.to_dict()])
+                complete_df = pd.concat([complete_df, new_row_df], ignore_index=True) # make a new entry
 
 complete_df.reset_index(drop=True, inplace=True)
 

@@ -1,17 +1,36 @@
-# trains on a subset of dresses only
-
 import os
 import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset, random_split
+from torch.utils.data import DataLoader, TensorDataset, Dataset, random_split
 from torchvision.datasets import ImageFolder
 from torchvision import transforms
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+
+class CustomDataset(Dataset):
+    def __init__(self, image_paths, labels, skus, transform=None):
+        self.image_paths = image_paths
+        self.labels = labels
+        self.skus = skus
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.image_paths)
+
+    def __getitem__(self, idx):
+        image = self.image_paths[idx]
+        label = self.labels[idx]
+        sku = self.skus[idx]
+        # image = Image.open(image_path).convert("RGB")
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, label, sku
 
 catalog = "C:/vvcc/archive-dump-Sept-2024/compiled-catalogs/complete_catalog_cleaned.csv"
 # catalog_dresses_subset = "C:/vvcc/archive-dump-Sept-2024/compiled-catalogs/complete_catalog_cleaned_dresses.csv"
@@ -24,20 +43,54 @@ catalog = "C:/vvcc/archive-dump-Sept-2024/compiled-catalogs/complete_catalog_cle
 catalog_csv = pd.read_csv(catalog)
 
 # get only the eras listed for dresses, no Nans
-dresses = pd.read_csv(catalog)
-dresses = dresses[dresses['itemtype'].str.contains('dress', case=False, na=False)]
-dresses = dresses.dropna(subset=['era'])
-dresses.loc[:, 'era'] = dresses['era'].apply(lambda x: int(float(x)) if pd.notna(x) else x)
-all_skus = dresses['sku']
+all_itemtypes = pd.read_csv(catalog)
+# dresses = dresses[dresses['itemtype'].str.contains('dress', case=False, na=False)]
+all_itemtypes['era'] = all_itemtypes['era'].astype(str)
+invalid_rows = all_itemtypes[~all_itemtypes['era'].str.replace('.', '', 1).str.isdigit()]
+print("Invalid rows in 'era':")
+print(invalid_rows)
+all_itemtypes['era'] = pd.to_numeric(all_itemtypes['era'], errors='coerce')
+all_itemtypes = all_itemtypes.dropna(subset=['era'])
+all_itemtypes['era'] = all_itemtypes['era'].astype(int)
+print(all_itemtypes['era'].head())
+print(len(all_itemtypes))
+# all_itemtypes['era'].astype(int)
+all_itemtypes.loc[:, 'era'] = all_itemtypes['era'].apply(lambda x: int(float(x)) if pd.notna(x) else x)
+all_skus = all_itemtypes['sku']
 # print(f"dresses' eras: {dresses['era'].unique()}")
 
-# can't bring in both sets of files, too big and overwhelms memory
-image_tensors_train = torch.load("image_tensors_train.pt", weights_only=True)
-image_tensors_test = torch.load("image_tensors_test.pt", weights_only=True)
-labels_train = torch.load("labels_train.pt", weights_only=True)
-labels_test = torch.load("labels_test.pt", weights_only=True)
-skus_train = torch.load("skus_train.pt", weights_only=True)
-skus_test = torch.load("skus_test.pt", weights_only=True)
+train_dataset = torch.load("train_dataset_ALL.pt")
+test_dataset = torch.load("test_dataset_ALL.pt")
+
+train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4)
+test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=4)
+
+image_tensors_train = []
+labels_train = []
+skus_train = []
+
+image_tensors_test = []
+labels_test = []
+skus_test = []
+
+for image, label, sku in train_dataset:
+    image_tensors_train.append(image)
+    labels_train.append(label)
+    skus_train.append(sku)
+
+for image, label, sku in test_dataset:
+    image_tensors_test.append(image)
+    labels_test.append(label)
+    skus_test.append(sku)
+
+
+
+# image_tensors_train = torch.load("image_tensors_train.pt", weights_only=True)
+# image_tensors_test = torch.load("image_tensors_test.pt", weights_only=True)
+# labels_train = torch.load("labels_train.pt", weights_only=True)
+# labels_test = torch.load("labels_test.pt", weights_only=True)
+# skus_train = torch.load("skus_train.pt", weights_only=True)
+# skus_test = torch.load("skus_test.pt", weights_only=True)
 
 # train_skus = [sku for sku in labels_train] 
 # test_skus = [sku for sku in labels_test]
@@ -54,6 +107,18 @@ print("TEST SKUS LENGTH:")
 print(len(test_skus))
 # print(test_skus[0:10])
 
+print("PT SKUS LENGTH")
+print(f"train: {len(skus_train)}")
+print(f"test: {len(skus_test)}")
+
+print("PT TENSORS LENGTH")
+print(f"train: {len(image_tensors_train)}")
+print(f"test: {len(image_tensors_test)}")
+
+print("PT LABELS LENGTH")
+print(f"train: {len(labels_train)}")
+print(f"test: {len(labels_test)}")
+
 # Remap the labels using the era_to_index dictionary
 # mapped_labels = [era_to_index[int(label.item())] for label in labels]
 
@@ -67,68 +132,44 @@ print(len(test_skus))
 # print(image_tensors.shape)
 
 class BasicCNN(nn.Module):
-    # def __init__(self, num_classes):
-    #     super(BasicCNN, self).__init__()
-    #     self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
-    #     self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-    #     self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
-    #     self.dropout = nn.Dropout(p=0.3) # 30% probability
-    #     self.fc1 = nn.Linear(32 * 56 * 56, 128) 
-    #     self.fc2 = nn.Linear(128, num_classes)
-
-    # def forward(self, x):
-    #     x = self.pool(nn.ReLU()(self.conv1(x)))
-    #     x = self.pool(nn.ReLU()(self.conv2(x)))
-    #     x = x.view(x.size(0), -1) 
-    #     x = nn.ReLU()(self.fc1(x))
-    #     x = self.dropout(x)  
-    #     x = self.fc2(x)
-    #     return x
-
     def __init__(self, num_classes):
         super(BasicCNN, self).__init__()
-        
-        # First Convolutional Block
-        self.conv1 = nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1)
-        self.bn1 = nn.BatchNorm2d(32)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.bn2 = nn.BatchNorm2d(64)
+        self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        
-        # Second Convolutional Block
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
-        self.bn3 = nn.BatchNorm2d(128)
-        self.conv4 = nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1)
-        self.bn4 = nn.BatchNorm2d(256)
-
-        # Fully Connected Layers
-        self.adaptive_pool = nn.AdaptiveAvgPool2d((1, 1))  # Global average pooling
-        self.fc1 = nn.Linear(256, 512)
-        self.fc2 = nn.Linear(512, 128)
-        self.fc3 = nn.Linear(128, num_classes)
-        self.dropout = nn.Dropout(p=0.5)  # 50% dropout for regularization
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
+        self.dropout = nn.Dropout(p=0.3) # 30% probability
+        self.fc1 = nn.Linear(32 * 56 * 56, 128) 
+        self.fc2 = nn.Linear(128, num_classes)
 
     def forward(self, x):
-        # First Convolutional Block
-        x = nn.ReLU()(self.bn1(self.conv1(x)))
-        x = nn.ReLU()(self.bn2(self.conv2(x)))
-        x = self.pool(x)
-        
-        # Second Convolutional Block
-        x = nn.ReLU()(self.bn3(self.conv3(x)))
-        x = nn.ReLU()(self.bn4(self.conv4(x)))
-        x = self.pool(x)
-        
-        # Adaptive Pooling
-        x = self.adaptive_pool(x)
-        x = x.view(x.size(0), -1)  # Flatten
-        
-        # Fully Connected Layers
+        x = self.pool(nn.ReLU()(self.conv1(x)))
+        x = self.pool(nn.ReLU()(self.conv2(x)))
+        x = x.view(x.size(0), -1) 
         x = nn.ReLU()(self.fc1(x))
-        x = self.dropout(x)  # Apply dropout
-        x = nn.ReLU()(self.fc2(x))
-        x = self.fc3(x)
+        x = self.dropout(x)  
+        x = self.fc2(x)
         return x
+
+    
+     #     def __init__(self, num_classes):
+    #     super(BasicCNN, self).__init__()
+    #     self.conv1 = nn.Conv2d(3, 16, kernel_size=3, stride=1, padding=1)
+    #     self.bn1 = nn.BatchNorm2d(16)
+    #     self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
+    #     self.conv2 = nn.Conv2d(16, 32, kernel_size=3, stride=1, padding=1)
+    #     self.bn2 = nn.BatchNorm2d(32)
+    #     self.dropout = nn.Dropout(p=0.5)
+    #     self.fc1 = nn.Linear(32 * 56 * 56, 64)
+    #     self.fc2 = nn.Linear(64, num_classes)
+
+    # def forward(self, x):
+    #     x = self.pool(nn.ReLU()(self.bn1(self.conv1(x))))
+    #     x = self.pool(nn.ReLU()(self.bn2(self.conv2(x))))
+    #     x = x.view(x.size(0), -1)  # Flatten
+    #     x = nn.ReLU()(self.fc1(x))
+    #     x = self.dropout(x)
+    #     x = self.fc2(x)
+    #     return x
 
 labels_train = [int(label) for label in labels_train]
 labels_test = [int(label) for label in labels_test]
@@ -136,6 +177,11 @@ skus_train = [int(sku) for sku in skus_train]
 skus_test = [int(sku) for sku in skus_test]
 train_skus = [int(sku) for sku in train_skus]
 test_skus = [int(sku) for sku in test_skus]
+
+print(f"Unique SKUs in train_skus: {len(set(train_skus))}")
+print(f"Unique SKUs in test_skus: {len(set(test_skus))}")
+print(f"Unique SKUs in skus_train: {len(set(skus_train))}")
+print(f"Unique SKUs in skus_test: {len(set(skus_test))}")
 
 # separate out tensors & labels to train & test with no overlap between the two, based on sku:
 train_dict = {
@@ -149,9 +195,6 @@ test_dict = {
     for tensor, label, sku in zip(image_tensors_test, labels_test, skus_test)
     if sku in test_skus
 }
-
-print(f"length of train_dict: {len(train_dict)}")
-print(f"length of test_dict: {len(test_dict)}")
 
 filtered_train_tensors = []
 filtered_train_labels = []
@@ -219,7 +262,7 @@ test_loader = DataLoader(test_dataset, batch_size=32)
 # dresses = dresses.dropna(subset=['era'])
 # dresses.loc[:, 'era'] = dresses['era'].apply(lambda x: int(float(x)) if pd.notna(x) else x)
 
-num_classes = len(dresses['era'].unique())
+num_classes = len(all_itemtypes['era'].unique())
 # print(f"num_classes: {num_classes}")
 # print(dresses['era'].unique())
 

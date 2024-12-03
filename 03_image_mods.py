@@ -1,3 +1,6 @@
+# resizes images, pads them if needed, all 226 x 226 afterward
+# creates an entire image set for train and identical set for test, except train has augmentation included
+
 # NOTE: SKUS over 56000 were removed in 04_tensor_building, ought to back up and remove them first here
 
 import re
@@ -85,6 +88,12 @@ augment_transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
+brightness_transform = transforms.Compose([
+    DynamicPadding(target_size=224, fill=255),
+    transforms.ColorJitter(brightness=0.5),  #  0.5 for darker images
+    transforms.ToTensor()
+])
+
 # for later:
 #     transforms.RandomHorizontalFlip(),
 #     transforms.RandomRotation(15),
@@ -93,11 +102,6 @@ augment_transform = transforms.Compose([
 grouped_images = defaultdict(list) # defaultdict initializes a dictionary's keys with default values
 
 for filename in os.listdir(input_dir):
-# for key, file_paths in grouped_images.items():
-#     if file_paths:
-#         first_file = file_paths[0]
-#         print(f"Key: {key}, Image Path: {first_file}")
-#         break
      if filename.endswith(".jpg"):
         match = re.match(sku_pattern, filename)
         if match:
@@ -129,7 +133,17 @@ for filename in os.listdir(input_dir):
                     augmented_image_pil = transforms.ToPILImage()(augmented_image)
                     augmented_image_pil.save(augmented_output_path)
                     counter += 1
-                    print(f"Processed and saved: {augmented_output_path} and augmentations.")
+                    print(f"Processed and saved: {augmented_output_path} augmented.")
+
+                for brightness_factor, suffix in [(0.5, "_darker"), (1.5, "_brighter")]:
+                    counter = 1
+                    brighter_image = brightness_transform(img)
+                    brighter_output_path = os.path.join(output_dir_train, f"{filename.split('.')[0]}b{counter}{suffix}.jpg")
+                    print(f"{filename.split('.')[0]}b{counter}{suffix}.jpg")
+                    brighter_image_pil = transforms.ToPILImage()(brighter_image)
+                    brighter_image_pil.save(brighter_output_path)
+                    counter += 1
+                    print(f"Processed and saved: {brighter_output_path} brightened.")
 
             except Exception as e:
                 print(f"Error processing {filename}: {e}")

@@ -1,5 +1,7 @@
-# compare sku to images, make a list of images without skus
-# compare image to sku, make a list of skus without images
+# compare sku to images, make separate lists of images & skus 
+# clean up data in catalog
+# remove non-women's items: men's, children's, sewing patterns, home goods
+# locate items were imported without itemtypes, type them (this got involved!) 
 
 import os
 import pandas as pd
@@ -215,6 +217,7 @@ nametypes_dict = {"sweater": ["sweater", "turtleneck", "pullover", "cardigan", "
                  "wedding gown": ["wedding dress", "wedding gown", "bridal gown", "empire gown with pearl clusters"],
                  "wedding veil": ["wedding veil", "bridal veil", "orange blossoms veil"],
                  "dress": ["day dress", "flapper dress", "1910s dress", "20s dress", "30s dress", "40s dress", "50s dress", "60s dress", "70s dress", "80s dress", "frock with lace collar", "dressx", "frockx", "dirndl", "kaftan", "rhumba dress", "pc dress", "piece dress", "gown with beaded", "mini and jacket", "rust halter gown", "chiffon ball gown", "moss green floral dress", "1930s black chiffon and lace dress", "thai silk tailored dress", "knit dress set", "office dress with pleated", "rockabilly dress", "lingerie dress", "polka dot dress", "secretary dress", "chiffon tailored dress", "black seersucker ensemble", "white pleated dress", "organdy dress", "couture quality cream wool dress", "mocha net dress", "swishy print dress", "halter dress with lace", "pewter silk tailored dress", "merino wool dress", "marilyn style 1950s tailored black fitted dress", "hourglass dress", "faux weave knit dress", "crafty stitcher 1960s", "hostess dress", "dress with slanted", "gypsy dress", "medallion print dress", "violet chiffon gown", "magenta print gown", "fantasy dress", "black velvet dress with pink", "floral satin empire gown", "white jersey gown", "canvas dress", "mini dress", "dressmaker frock", "teal striped dress", "navy fleck dress", "cheerleader uniform", "tea gown", "lawn frock", "taffeta frock", "homespun dress", "cut velvet dress with satin roses", "gauze dress", "lounge dress", "stripe halter dress", "color block dress", "strapless dress", "strapless frock", "18th century costume", "strapless gown", "linen tailored dress", "cotton frock", "muumuu", "butterflies halter dress", "black pinstripe dress", "hawaiian dress", "debutante gown", "debutante style gown", "diner dress", "waitress uniform", "uniform dress", "paisley dress", "tent dress", "gown with beadwork", "bandeau gown and overlay", "satin separates", "mini with bell sleeves", "patchwork dress", "black and striped dress", "dinner dress", "royal purple dress", "cotton halter dress", "antique dress", "lawn dress", "nurse uniform", "crepe and satin dress", "velvet dress with tatted daisies", "beaded 1950s gown", "1930s look dress", "1950sinspired dress", "jumper", "summer dress", "bombshell dress", "empire dress", "party frock", "chiffon empire gown", "blouson dress", "chiffon frock", "casual dress", "linen dress", "crepe dress", "silk dress", "silk frock", "terrycloth dress", "terrycloth knit dress", "swing style dress", "drop waist dress", "egyptian goddess gown", "dress in denim", "floral chiffon dress", "beaded gown", "cotton dress", "polyester dress", "jersey dress", "blue dress with", "wrap dress", "house dress", "tricot 1960s lounge dress", "party dress", "design print dress", "pucci look dress", "tennis dress", "sport dress", "sports dress", "aline dress", "maxi dress", "afternoon dress", "afternoon gown", "bohemian dress", "hippie dress", "evening gown", "gown with detachable train", "geisha girls dress", "silk chiffon dress", "evening dress", "sun dress", "cocktail", "shift", "sheath", "tunic dress", "diamond knit dress", "velvet halter dress", "1980s navy tailored dress", "sexy spring green dress", "chocolate cut velvet dress", "pixel panel dress", "mini dress by david hayes", "haute quality cardinal red wool dress", "india silk print dress", "brown knit dress in checks", "mustard plaid dress", "sari", "lavender haze dress", "garden path tailored dress", "baremidriff summer set", "violet knit dress", "apple green knit dress", "1960s mocha knit dress", "violet plaid dress", "diane fres", "hanae mori dress", "1960s designer dress", "1960s mod dress  long", "1980s red striped dress", "1930s floral dress", "1930s white dress", "1970s disco dress", "1950s purple dress", "1980s retro dress", "linen 1960s tailored office dress", "inkblot rayon dress", "calico peasant dress", "fitnflare dress", "emma peel style dress", "charcoal tailored dress", "maroon floral dress", "brown squares knit dress", "1970s muslin dress", "nymph dress", "little black dress", "daisies knit dress", "floral stripe dress", "sand knit dress", "avocado knit dress", "1920s navy satin dress", "blue knit office dress", "toffee gabardine dress", "white minimalist dress", "navy knit dress with silver", "peel 1960s black tailored wool dress", "daisy print frock", "1970s peplum dress"], # "dress
+                 "suit": ["1940s suit", "smart 1950s black linen suit", "1940s navy suit with", "mocha raw silk suit", "mocha linen suit", "tone brown suit with square buttons", "dress and coat", "ensemble", "dress and jacket", "dress and tailored jacket", "dress and embroidered jacket", "sports suit", "crochet suit", "summer suit", "ultrasuede suit", "gray plaid cotton suit", "cadet blue suit", "camel linen suit", "1960s navy knit suit", "1960s beige suit", "gabardine suit", "wool suit ", "silver suit", "lime green suit", "black and white wool suit", "beige striped suit", "suit with suede trim", "orange wool suit", "hearts linen suit", "sports suit", "day suit", "evening suit", "textured wool suit", "cadet gray suit", "1960s suit", "pc suit", "ivory suit", "wool tweed suit", "polyester 1970s suit", "dress set", "satin suit", "sharkskin suit", "style suitx"],
                  "full slip": ["full slip", "slip", "chemise"],
                  "garter belt": ["garter belt"],""
                  "underwear": ["undies", "underwear", "bloomers", "panty", "panties", "brief"],
@@ -253,11 +256,13 @@ nametypes_dict = {"sweater": ["sweater", "turtleneck", "pullover", "cardigan", "
                  "spats": ["spats"],
                  "belt": ['chain belt with filigree', 'chevron belt', 'chainlink belt with tassel', 'hippie belt with faux tortoise', 'velvet belt with metallic gold', 'suede slouchy belt', 'belt with silver metal buckle', 'braided maroon belt', '1990s belt in suede', 'triple belt', 'brocade belt with fringe', 'beaded belt with tassels'],
                  "bra": ["bra"],
-                 "suit": ["1940s suit", "smart 1950s black linen suit", "1940s navy suit with", "mocha raw silk suit", "mocha linen suit", "tone brown suit with square buttons", "dress and coat", "ensemble", "dress and jacket", "dress and tailored jacket", "dress and embroidered jacket", "sports suit", "crochet suit", "summer suit", "ultrasuede suit", "gray plaid cotton suit", "cadet blue suit", "camel linen suit", "1960s navy knit suit", "1960s beige suit", "gabardine suit", "wool suit ", "silver suit", "lime green suit", "black and white wool suit", "beige striped suit", "suit with suede trim", "orange wool suit", "hearts linen suit", "sports suit", "day suit", "evening suit", "textured wool suit", "cadet gray suit", "1960s suit", "pc suit", "ivory suit", "wool tweed suit", "polyester 1970s suit", "dress set", "satin suit", "sharkskin suit", "style suitx"],
                  "ring": ["ring"],
                  "tie": ["tie"]
                  }
 
+# combine dresses with suits (need more data and they are most similar)
+nametypes_dict['dress'] += nametypes_dict['suit']
+# print(nametypes_dict['dress'])
 
 # match itemtype_dict & then nametype_dict keys to 'itemtype'
 # if found, replace itemtype & put an "x" in typed
@@ -278,6 +283,8 @@ condition_belt = (csv_file['name'].str.contains("belt", case=False, na=False)) &
 condition_purse = (csv_file['name'].str.contains("clutch", case=False, na=False)) & (csv_file['itemtype'].isin(['accessories', 'handbags & purses']))
 condition_dress = (csv_file['name'].str.contains(r"gown|frock|dress")) & (csv_file['itemtype'] == 'formal wear')
 condition_dress2 = (csv_file['name'].str.contains(r"gown|frock|dress")) & (csv_file['itemtype'] == 'formals')
+condition_suit = (csv_file['name'].str.contains("suit", case=False, na=False)) & (csv_file['itemtype'] == 'business')
+condition_suit2 = (csv_file['name'].str.contains(r"(?=.*dress)(?=.*jacket)", case=False, na=False)) & (csv_file['itemtype'] == 'business')
 
 csv_file.loc[condition_ling, 'itemtype'] = 'nightgown'
 csv_file.loc[condition_ling, 'typed'] = 'x'
@@ -296,6 +303,19 @@ csv_file.loc[condition_dress, 'typed'] = 'x'
 
 csv_file.loc[condition_dress2, 'itemtype'] = 'dress'
 csv_file.loc[condition_dress2, 'typed'] = 'x'
+
+# print("Before:")
+# print(len(csv_file[csv_file['itemtype'] == 'dress']))
+
+# changes all suits to dress category for larger n for dress dataset
+csv_file.loc[condition_suit, 'itemtype'] = 'dress'
+csv_file.loc[condition_dress2, 'typed'] = 'x'
+
+csv_file.loc[condition_suit2, 'itemtype'] = 'dress'
+csv_file.loc[condition_suit2, 'typed'] = 'x'
+
+# print("After:")
+# print(len(csv_file[csv_file['itemtype'] == 'dress']))
 
 # remove straggling stuff
 csv_file = csv_file[csv_file['name'] != "blank"]

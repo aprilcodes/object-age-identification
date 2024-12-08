@@ -5,6 +5,7 @@
 
 import re
 from collections import defaultdict
+import pandas as pd
 import os
 import torch
 from torchvision import transforms
@@ -73,6 +74,21 @@ output_dir_train = "C:/vvcc/archive-dump-Sept-2024/processed_photos_train/"
 os.makedirs(output_dir_test, exist_ok=True)
 os.makedirs(output_dir_train, exist_ok=True)
 
+catalog = "C:/vvcc/archive-dump-Sept-2024/compiled-catalogs/complete_catalog_cleaned.csv"
+catalog_csv = pd.read_csv(catalog)
+dresses = catalog_csv[catalog_csv['itemtype'].str.contains('dress', case=False, na=False)]
+dress_skus = dresses['sku'].tolist()
+dress_skus = [str(sku) for sku in dress_skus]
+
+dresses = dresses.dropna(subset=['era'])
+dresses.loc[:, 'era'] = dresses['era'].apply(lambda x: int(float(x)) if pd.notna(x) else x)
+print(f"before: {len(dresses)}")
+dresses = dresses[~dresses['era'].isin([1850, 1890, 1900, 1910, 1920, 1930, 1940, 1980, 1990, 2000])] # remove severely underrepresented classes
+print(f"after: {len(dresses)}")
+print(dresses['era'].unique())
+print(dresses['era'].value_counts())
+skus_between_1950_1970 = dresses['sku']
+
 # # regex pattern to match SKUs with variable lengths (3-5 digits)
 sku_pattern = r"^(v\d{3,5})(?:[a-zA-Z0-9]{3})?\.jpg$"
 
@@ -94,18 +110,20 @@ brightness_transform = transforms.Compose([
     transforms.ToTensor()
 ])
 
-# for later:
-#     transforms.RandomHorizontalFlip(),
-#     transforms.RandomRotation(15),
-#     transforms.ColorJitter(contrast=0.2),
-
 grouped_images = defaultdict(list) # defaultdict initializes a dictionary's keys with default values
+
+valid_skus = set(skus_between_1950_1970.astype(str)) # 5652 valid skus
 
 for filename in os.listdir(input_dir):
      if filename.endswith(".jpg"):
         match = re.match(sku_pattern, filename)
         if match:
             sku = match.group(1)  # extract the sku from the filename
+            sku_stripped = sku.lstrip('v')  # Remove the leading 'v'
+            sku_stripped = str(sku_stripped)
+            if sku_stripped not in valid_skus:
+                continue 
+
             file_path = os.path.join(input_dir, filename)
             grouped_images[sku].append(file_path)
             output_path_test = os.path.join(output_dir_test, filename)
@@ -119,10 +137,6 @@ for filename in os.listdir(input_dir):
                 padded_image_pil.save(output_path_train)
                 print(f"Processed and saved unaltered images: {output_path_train}")
                 print(f"Processed and saved unaltered images: {output_path_test}")
-
-                #     transforms.RandomHorizontalFlip(),
-                #     transforms.RandomRotation(15),
-                #     transforms.ColorJitter(contrast=0.2),
 
                 counter = 0
                 for angle, suffix in [(-2, "_rotated_left"), (2, "_rotated_right")]:

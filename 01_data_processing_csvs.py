@@ -10,17 +10,14 @@ import pyodbc
 def extract_number(text): 
     match = re.search(r'\b\d{4,5}\b$', str(text)) 
     if match:
-        # print(f"MATCH: {int(match.group())}")
         return int(match.group())
     return None
 
-# os.chdir(r'C:/ncf-graduate-school/semester-3/deep-learning/final-project')
 os.chdir(r'C:/vvcc/archive-dump-Sept-2024/compiled-catalogs/_csvs-with-sku-name-era-description')
 
 cwd = os.getcwd()
 
 file_names = [file for file in os.listdir(cwd) if os.path.isfile(os.path.join(cwd, file))]
-# print(f"file_names: {file_names}")
 
 complete_df = pd.DataFrame(columns=["sku", "name", "title", "era", "description", "itemtype"])
 
@@ -52,18 +49,8 @@ for file in file_names:
         df.drop(columns=['Variant SKU'])
 
     if "Etsy" in file or "sellbrite" in file: # Etsy & Sellbrite files may have sku in Name, needs to move to sku
-        #if "sellbrite" in file: # sellbrite files start with two unnecessary rows
-            #print("BEFORE:")
-            #print(df.iloc[3:3, :])
-            # df = df.iloc[1:].reset_index(drop=True)
-            # df = df[1:].reset_index(drop=True)
-            # df.columns = df.iloc[0]  # set the first row as column names
-            # df = df[0:].reset_index(drop=False)
-            # print("AFTER:")
-            # print(df.columns)
         df.columns = df.columns.str.lower()
         for index, row in df.iterrows():
-            # print(f"row[name] is {row['name']}")
             name_number = extract_number(row['name']) 
             if name_number:
                 if pd.isna(df.loc[index, 'sku']): # if sku is empty, replace it for both Etsy/Sellbrite files
@@ -81,10 +68,6 @@ for file in file_names:
             if "itemtype" in df.columns:
                 print(f"itemtype column exists and has {df['itemtype'].count()} non-empty rows.")   
 
-    #if df['sku'].dtype(int): # make all skus strings temporarily
-    #    df['sku'].astype(str)
-    # df = df.dropna(how='all') # get rid of empty rows to speed up processing
-    # df = df.dropna(how='all', subset=["sku", "itemtype", "name", "description"])
     df.columns = df.columns.str.lower()
 
     if "sku" not in df.columns: # if this particular file doesn't have any sku reference, we don't need it
@@ -102,9 +85,6 @@ for file in file_names:
 
         for _, row in df.iterrows():
             sku = row['sku']
-            #if sku == '340841' or sku == 340841:
-            #    print("FUNKY FILE: ")
-            #    print(complete_file_path)
             
             if sku in complete_df['sku'].values: # if sku exists, update rows with new info 
                 for col in df.columns:

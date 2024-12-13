@@ -2,6 +2,8 @@
 # clean up data in catalog
 # remove non-women's items: men's, children's, sewing patterns, home goods
 # locate items were imported without itemtypes, type them (this got involved!) 
+# tried using an AI assistant to make this easier through Llama
+# it couldn't reliably access Google Sheets and/or couldn't save its results to Sheets
 
 import os
 import pandas as pd
@@ -50,29 +52,6 @@ def map_nametypes(row):
                 return key, "x" 
     return row['itemtype'], row['typed']
 
-# def update_dual_columns(row):
-#     name = str(row['name'])
-#     csv_file['typed'] = csv_file['typed'].astype(str)
-#     description = str(row['description'])
-
-#     # print(f"Before: {row}")
-#     changed = False
-#     if "gown" in name and row['itemtype'] == 'ling':
-#         row['itemtype'] = 'trial_run'
-#         row['typed'] = 'x'
-#         # print(f"row['name']: {row['name']}, row['itemtype']: {row['itemtype']}, row['typed']: {row['typed']}")
-#         # print(f"Condition met for gown: {row}, typed is {row['typed']} and itemtype is {row['itemtype']}")
-#         changed = True
-#     elif "gown" in name and "nightgown" in description:
-#         row['itemtype'] = 'trial_run'
-#         row['typed'] = 'x'
-#         # print(f"Condition met for gown: {row}, typed is {row['typed']} and itemtype is {row['itemtype']}")
-#         # print(f"row['name']: {row['name']}, row['itemtype']: {row['itemtype']}, row['typed']: {row['typed']}")
-#         changed = True
-#     if changed == True:
-#         print(f"After update: {row}")
-#     return row
-
 os.chdir(r'C:/vvcc/archive-dump-Sept-2024')
 cwd = os.getcwd()
 
@@ -83,8 +62,6 @@ os.makedirs(output_folder, exist_ok=True)
 
 csv_filepath = cwd + '/compiled-catalogs/complete_catalog.csv'
 csv_file = pd.read_csv(csv_filepath)
-
-# print(csv_file.columns)
 
 # find rows where 'title' has a value and 'name' is empty, replace empty name with title
 csv_file.loc[csv_file['title'].notna() & csv_file['name'].isna(), 'name'] = csv_file['title']
@@ -193,19 +170,6 @@ itemtype_dict = {"bsuit": "swimsuit",
 
 # 'gown' is ambiguous unless paired with 'ling' category, or 'nightgown' is found in description; must have its own filtering condition
 
-# csv_file.loc[(csv_file['name'].str.contains("gown", case=False, na=False)) & (csv_file['itemtype'] == 'ling'), ['itemtype', 'typed']] = ['nightgown', 'x']
-# csv_file.loc[(csv_file['name'].str.contains("gown", case=False, na=False)) & (csv_file['description'].str.contains("gown", case=False, na=False)), ['itemtype', 'typed']] = ['nightgown', 'x']
-
-# remove itemtype values with ., they're not supposed to be there, and they're causing silent errors
-# csv_file['itemtype'] = csv_file['itemtype'].astype(str)
-# csv_file['itemtype'] = csv_file['itemtype'].str.strip()
-# csv_file['itemtype'] = csv_file['itemtype'].replace(r'[\r\n]+', ' ', regex=True)
-# csv_file['itemtype'] = csv_file['itemtype'].apply(lambda x: x.encode('ascii', 'ignore').decode('ascii'))
-
-# print(csv_file.loc[csv_file['itemtype'].str.contains(r'\.', na=False), 'itemtype'])
-
-# csv_file.loc[csv_file['itemtype'].str.contains(r'\.', na=False), 'itemtype'] = ""
-
 # this dictionary (2 of 2) uses values in name to standardize item types
 nametypes_dict = {"sweater": ["sweater", "turtleneck", "pullover", "cardigan", "twin set", "shrug"],
                  "bra": ["bra ", "bustier", "merry widow"],
@@ -262,7 +226,6 @@ nametypes_dict = {"sweater": ["sweater", "turtleneck", "pullover", "cardigan", "
 
 # combine dresses with suits (need more data and they are most similar)
 nametypes_dict['dress'] += nametypes_dict['suit']
-# print(nametypes_dict['dress'])
 
 # match itemtype_dict & then nametype_dict keys to 'itemtype'
 # if found, replace itemtype & put an "x" in typed
@@ -304,18 +267,12 @@ csv_file.loc[condition_dress, 'typed'] = 'x'
 csv_file.loc[condition_dress2, 'itemtype'] = 'dress'
 csv_file.loc[condition_dress2, 'typed'] = 'x'
 
-# print("Before:")
-# print(len(csv_file[csv_file['itemtype'] == 'dress']))
-
 # changes all suits to dress category for larger n for dress dataset
 csv_file.loc[condition_suit, 'itemtype'] = 'dress'
 csv_file.loc[condition_dress2, 'typed'] = 'x'
 
 csv_file.loc[condition_suit2, 'itemtype'] = 'dress'
 csv_file.loc[condition_suit2, 'typed'] = 'x'
-
-# print("After:")
-# print(len(csv_file[csv_file['itemtype'] == 'dress']))
 
 # remove straggling stuff
 csv_file = csv_file[csv_file['name'] != "blank"]
@@ -349,11 +306,6 @@ for filename in os.listdir(photos_folder):
             src_path = os.path.join(photos_folder, filename)
             dst_path = os.path.join(output_folder, filename)
             shutil.copy2(src_path, dst_path)
-            # print(f"Copied {filename} to {output_folder}")
-
-#print(f"Unmatched files: {unmatched_files}")
-#print(len(unmatched_files))
-#print(len(csv_file))
 
 # last bit to munge: a few descriptions bump out one column to the right, unsure why
 csv_file.loc[csv_file["ml"] == "x", "itemtype"] = csv_file["typed"]
